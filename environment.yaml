@@ -18,3 +18,8 @@ dependencies:
   - multiqc
   - samtools
   - r-ggpubr
+  - r-seurat
+  - r-hmisc
+  - r-tidyverse
+  - r-devtools
+  - r-rcolorbrewer
