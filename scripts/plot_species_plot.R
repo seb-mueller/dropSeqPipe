@@ -1,8 +1,7 @@
 #Functions used to plot the species plot for drop-seq mixed protocol
 #Authors: James Nemesh, Roelli Patrick
 
-
-categorizeCellsUsingKneeKnownNumCellsPaper<-function (digitalExpressionFileO1, digitalExpressionFileO2, organismOne, organismTwo, pureRatio=0.2, numCells, numBeads, point.cex=1.5, category='transcripts', xlim_range=NULL,ylim_range=NULL) {
+categorizeCellsUsingKneeKnownNumCellsPaper<-function (digitalExpressionFileO1, digitalExpressionFileO2, organismOne, organismTwo, pureRatio=0.2, numCells, numBeads, point.cex=1.5, xlim_range=NULL,ylim_range=NULL, category='transcripts') {
   dfFull=getNumTranscriptsPerCellBarcodeByOrganismPair(digitalExpressionFileO1, digitalExpressionFileO2, organismOne, organismTwo, category)
   dfFull=dfFull[order(dfFull$total, decreasing=T),]
   dfFull$ratio_one=dfFull[,2]/dfFull[,4]
@@ -84,8 +83,6 @@ getGenesAndTranscriptsPerCellBarcode<-function (digitalExpressionFile) {
   return (a)
 } 
 
-#print(snakemake)
-#save(snakemake, file='test.Rdata')
 digitalExpressionFileO1 = snakemake@input[[1]][1]
 digitalExpressionFileO2 = snakemake@input[[2]][1]
 
@@ -97,24 +94,13 @@ df_temp=categorizeCellsUsingKneeKnownNumCellsPaper(digitalExpressionFileO1,
                                            digitalExpressionFileO2,
                                            snakemake@config$META$species[1],
                                            snakemake@config$META$species[2],
-                                           pureRatio = snakemake@config$META$species_ratio,
+                                           pureRatio = snakemake@config$META$ratio,
                                            numCells = num_cells,
                                            numBeads = num_cells * 2,
                                            point.cex= 1,
                                            category = 'genes')
 dev.off()
 
-png(snakemake@output$genes_png, height=8, width=8, units='in', res=300)
-df_temp=categorizeCellsUsingKneeKnownNumCellsPaper(digitalExpressionFileO1,
-                                           digitalExpressionFileO2,
-                                           snakemake@config$META$species[1],
-                                           snakemake@config$META$species[2],
-                                           pureRatio = snakemake@config$META$species_ratio,
-                                           numCells = num_cells,
-                                           numBeads = num_cells * 2,
-                                           point.cex= 1,
-                                           category = 'genes')
-dev.off()
 
 
 pdf(snakemake@output$transcripts_pdf, height=8, width=8)
@@ -122,25 +108,12 @@ df=categorizeCellsUsingKneeKnownNumCellsPaper(digitalExpressionFileO1,
                                               digitalExpressionFileO2,
                                               snakemake@config$META$species[1],
                                               snakemake@config$META$species[2],
-                                              pureRatio = snakemake@config$META$species_ratio,
+                                              pureRatio = snakemake@config$META$ratio,
                                               numCells = num_cells,
                                               numBeads = num_cells * 2,
                                               point.cex= 1,
                                               category = 'transcripts')
 dev.off()
-
-png(snakemake@output$transcripts_png, height=8, width=8, units='in', res=300)
-df=categorizeCellsUsingKneeKnownNumCellsPaper(digitalExpressionFileO1,
-                                              digitalExpressionFileO2,
-                                              snakemake@config$META$species[1],
-                                              snakemake@config$META$species[2],
-                                              pureRatio = snakemake@config$META$species_ratio,
-                                              numCells = num_cells,
-                                              numBeads = num_cells * 2,
-                                              point.cex= 1,
-                                              category = 'transcripts')
-dev.off()
-
 
 organism1 = subset(df, df$organism == snakemake@config$META$species[1])
 organism2 = subset(df, df$organism == snakemake@config$META$species[2])

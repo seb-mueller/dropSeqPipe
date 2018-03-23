@@ -4,7 +4,6 @@
 #	input: 'logs/{sample}_hist_out_cell.txt'
 #	output:
 #		pdf = 'plots/{sample}_knee_plot.pdf',
-#		png = 'plots/png/{sample}_knee_plot.png'
 #	params: 
 #		cells = lambda wildcards: samples.loc[wildcards.sample,'expected_cells']
 #	script:
@@ -104,6 +103,8 @@ read_count_plot <- ggplot(plot_data_head, aes(x=rank, y=read_count)) +
   geom_point(size = 0.1)  +
   theme(plot.title = element_text(size=10)) +
   labs(x='STAMPS', y='Read counts per STAMP')
+# added in 0.31:
+# knee_plot = knee_plot + scale_y_continuous(labels = scales::percent)
 diff_plot <- ggplot(plot_data_head, aes(x=rank, y=diff)) +
   geom_text(data=plot_data_head_sub,aes(label = diff),nudge_y=-0.05, vjust = "inward", hjust = "inward", check_overlap = TRUE) +
   #   geom_smooth() +
@@ -132,10 +133,11 @@ gp2 <- ggplotGrob(read_count_plot)
 gp3 <- ggplotGrob(diff_plot)
 gp4 <- ggplotGrob(diff_diff_plot)
 grid::grid.newpage()
-gg=grid::grid.draw(rbind(gp1, gp2, gp3, gp4, size = "last"))
-gg=gridExtra::arrangeGrob(rbind(gp1, gp2, gp3, gp4, size = "last"))
+gg <- grid::grid.draw(rbind(gp1, gp2, gp3, gp4, size = "last"))
+gg <- gridExtra::arrangeGrob(rbind(gp1, gp2, gp3, gp4, size = "last"))
 
 # if barcode.csv is present in base directory, only use barcodes in there (rule plot_knee_plot_whitelist in map.smk)
+
 if(!is.null(snakemake@input$barcodes))
 {
   barcodes_whitelist  <-  read.csv(snakemake@input$barcodes, header=FALSE, stringsAsFactors=FALSE)
@@ -146,7 +148,6 @@ if(!is.null(snakemake@input$barcodes))
 }
 ggsave(gg, file=snakemake@output$pdf, width = 9, height = 11)
 # ggsave(knee_plot, file=snakemake@output$pdf, width = 4, height = 3)
-ggsave(gg, file=snakemake@output$png, width = 9, height = 11)
 
 # suggestions:
 # plot deduplicated reads instead
