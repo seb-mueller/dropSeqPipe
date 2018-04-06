@@ -21,8 +21,3 @@ dependencies:
   - samtools
   - r-ggpubr
   - readline=6.2
-  - r-seurat
-  - r-hmisc
-  - r-tidyverse
-  - r-devtools
-  - r-rcolorbrewer
