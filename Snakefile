@@ -93,6 +93,9 @@ rule map:
         expand('logs/{sample}_hist_out_cell.txt', sample=samples.index),
         expand('plots/{sample}_knee_plot.pdf', sample=samples.index),
         'reports/star.html',
+        'plots/violinplots_comparison_UMI.pdf',
+#        'summary/umi_expression_matrix.tsv',
+#        'summary/counts_expression_matrix.tsv',
         'plots/yield.pdf'
         
 rule extract:

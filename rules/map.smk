@@ -185,3 +185,17 @@ rule plot_knee_plot_whitelist:
 		pdf='plots/{sample}_knee_plot.pdf'
 	script:
 		'../scripts/plot_knee_plot.R'
+
+rule violine_plots:
+	input:
+		UMIs='summary/umi_expression_matrix.tsv',
+		counts='summary/counts_expression_matrix.tsv',
+		design='samples.csv'
+#	params: 
+#		cells=lambda wildcards: samples.loc[wildcards.sample,'expected_cells'],
+#		edit_distance=config['EXTRACTION']['UMI-edit-distance']
+	conda: '../envs/plots_ext.yaml'
+	output:
+		pdf='plots/violinplots_comparison_UMI.pdf'
+	script:
+		'../scripts/plot_violine.R'
