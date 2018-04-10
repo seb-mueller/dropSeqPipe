@@ -1,4 +1,15 @@
-.libPaths(rev(.libPaths()))
+#' ---
+#' title:  plot_violine.R
+#' author: Sebastian Mueller (sebm_at_posteo.de)
+#' date:   2018-04-10
+#' ---
+### for debug
+# If you wish to access the snakefile object first invoke snakemake and save the session automatically
+# Since there are no debug flags to my knowledge, just uncomment the line below and run snakemake which
+# creates an R object that can be loaded into a custom R session
+# save.image(file="R_workspace_debug.rdata")
+# load("R_workspace_debug.rdata")
+####/debug
 library(plyr)
 library(dplyr) # Dataframe manipulation
 library(Matrix) # Sparse matrices
@@ -10,15 +21,27 @@ library(devtools)
 library(Seurat)
 library(plotly)
 
+# rule map in Snakefile
+# rule map:
+#     input:
+#         'plots/violinplots_comparison_UMI.pdf',
+#         ...
+
 # importing UMI
-# umi_matrix             <- read.csv(file.path(path,'summary/umi_expression_matrix.tsv'), sep='\t', header = TRUE, row.names = 1, check.names = FALSE)
-headm <- function(x, n=6) x[1:6,1:6]
-count_matrix             <- read.csv(snakemake@input$counts, sep='\t', header = TRUE, row.names = 1, check.names = FALSE)
-# importing counts
-# summary/counts_expression_matrix.tsv
-umi_matrix           <- read.csv(snakemake@input$UMIs, sep='\t', header = TRUE, row.names = 1, check.names = FALSE)
-# colnames(count_matrix) <- colnames(umi_matrix)
-design                 <- read.csv(snakemake@input$design, stringsAsFactors = TRUE, header = TRUE, row.names = NULL)
+# umi_matrix             <- read.csv(file.path(path,'summary/umi_expression_matrix.tsv'), sep='\t', header = TRUE, row.names = 1, check.names = FALSE) %>%
+# importing counts ( summary/counts_expression_matrix.tsv )
+count_matrix <- read.csv(snakemake@input$counts, sep = "\t",
+                         header = TRUE, row.names = 1,
+                         check.names = FALSE)
+# importing UMIs ( summary/umi_expression_matrix.tsv )
+umi_matrix   <- read.csv(snakemake@input$UMIs,
+                         sep = "\t",
+                         header = TRUE,
+                         row.names = 1,
+                         check.names = FALSE)
+design       <- read.csv(snakemake@input$design, stringsAsFactors = TRUE,
+                         header = TRUE,
+                         row.names = NULL)
 
 metaData <- data.frame(cellNames = colnames(umi_matrix)) %>%
   mutate(samples = factor(str_replace(cellNames,"_[^_]*$",""))) %>%
@@ -26,19 +49,19 @@ metaData <- data.frame(cellNames = colnames(umi_matrix)) %>%
   left_join(design, by = "samples")
 rownames(metaData) <- metaData$cellNames
 
-# setting is.expr = -1 to avoid filtering whilst creating
+# possible to set is.expr = -1 to avoid filtering whilst creating
 # myumi <- CreateSeuratObject(raw.data = umi_matrix, meta.data = metaData, is.expr = -1)
 myumi <- CreateSeuratObject(raw.data = umi_matrix, meta.data = metaData)
 myumi <- SetAllIdent(object = myumi, id = "samples")
 # relabel cell idenity (https://github.com/satijalab/seurat/issues/380)
-# myumi@ident  <- factor(stringr::str_replace(colnames(myumi@data),"_[^_]+$",""))
-# myumi@meta.data$myident  <- (stringr::str_replace(colnames(myumi@data),"_[^_]+$",""))
+myumi@meta.data$orig.ident <- myumi@meta.data$samples
 
 mycount <- CreateSeuratObject(raw.data = count_matrix, meta.data = metaData)
 mycount <- SetAllIdent(object = mycount, id = "samples")
+mycount@meta.data$orig.ident <- mycount@meta.data$samples
 # turn off filtering
 
-# note, the @meta.data slot contains usefull summary stuff 
+# note, the @meta.data slot contains usefull summary stuff
 # head(mycount@meta.data,2)
 #                              nGene nUMI expected_cells read_length      barcode
 # dropseqLib1_ACTAACATTATT    15   33            400         100 ACTAACATTATT
@@ -48,18 +71,36 @@ mycount <- SetAllIdent(object = mycount, id = "samples")
 # dropseqLib1_GAGTCTGAGGCG dropseqLib1 dropseqLib1
 meta.data         <- myumi@meta.data
 meta.data$nCounts <- mycount@meta.data$nUMI
-# save.image(file="Rworkspace_violine.rdata")
-setwd("~/analysis/dropseq/data/10x")
-# load("Rworkspace_violine.rdata")
-load("Seurat_objects.rdata")
 
-gg <- ggplot(meta.data, aes(x=nUMI,y=nCounts,color=orig.ident)) +
+
+# mytheme <- theme_bw(base_size = 9) +
+mytheme <- theme_bw() +
+  theme(legend.position = "right",
+        axis.ticks = element_blank(),
+        axis.text.x = element_text(angle = 300, hjust = 0))
+theme_set(mytheme)
+
+# predefined ggplot layers for subsequent plots
+gglayers <- list(
+  geom_smooth(),
+  geom_point(size = .5),
+  scale_y_continuous(labels = scales::unit_format(unit = "", scale = 1e-3, digits = 2),
+                     breaks = scales::pretty_breaks(n = 8)),
+  scale_x_continuous(labels = scales::unit_format(unit = "", scale = 1e-3, digits = 2),
+                     breaks = scales::pretty_breaks(n = 8))
+)
+
+gg <- ggplot(meta.data, aes(x = nUMI, y=nCounts, color=orig.ident)) +
   #   coord_trans(y="log10",x = "log10") +
+  gglayers +
   geom_abline(intercept = 0, slope = 1) +
-  geom_point()
-plotname <- "umi_vs_counts"
-p <- ggplotly(gg)
-htmlwidgets::saveWidget(p,file.path(paste0(plotname,".html")))
+  labs(title = "UMI counts vs raw Counts",
+     subtitle = "Number of UMIs and raw Counts for each Bead",
+     x = "Number of UMIs per Bead [k]",
+     y = "Number of Counts per Bead [k]")
+
+htmlwidgets::saveWidget(ggplotly(gg), file.path(getwd(),snakemake@output$html_umivscounts))
+ggsave(gg, file = file.path(getwd(), snakemake@output$pdf_umivscounts), width=12,height=7)
 
 # how about unaligned reads/UMI?
 # Note(Seb): raw.data is actually filtered data i.e. nr of genes likely to be smaller than input data!
@@ -84,102 +125,94 @@ myumi <- AddMetaData(myumi, Matrix::colSums(myumi@raw.data[sribo.gene.names, ])/
 myumi <- AddMetaData(myumi, Matrix::colSums(myumi@raw.data[lribo.gene.names, ])/col.total.umi, "pct.lribo")
 myumi <- AddMetaData(myumi, Matrix::colSums(myumi@raw.data[unique(c(sribo.gene.names, lribo.gene.names)), ])/col.total.umi, "pct.Ribo")
 myumi <- AddMetaData(myumi, Matrix::colSums(myumi@raw.data[mito.gene.names, ])/col.total.umi, "pct.mito")
-myumi <- AddMetaData(myumi, myumi.top_50, 'top50')
+myumi <- AddMetaData(myumi, myumi.top_50, "top50")
 tmp <- myumi@meta.data$nUMI/myumi@meta.data$nGene
 names(tmp) <- rownames(myumi@meta.data)
-myumi <- AddMetaData(myumi, tmp, 'umi.per.gene')
+myumi <- AddMetaData(myumi, tmp, "umi.per.gene")
 
-tmp=(myumi@meta.data[,"nUMI",drop=F]/myumi@meta.data$nGene)
+# tmp=(myumi@meta.data[,"nUMI",drop=F]/myumi@meta.data$nGene)
 mycount <- AddMetaData(mycount, Matrix::colSums(mycount@raw.data[sribo.gene.names, ])/col.total.count, "pct.sribo")
 mycount <- AddMetaData(mycount, Matrix::colSums(mycount@raw.data[lribo.gene.names, ])/col.total.count, "pct.lribo")
 mycount <- AddMetaData(mycount, Matrix::colSums(mycount@raw.data[unique(c(sribo.gene.names, lribo.gene.names)), ])/col.total.count, "pct.Ribo")
 mycount <- AddMetaData(mycount, Matrix::colSums(mycount@raw.data[mito.gene.names, ])/col.total.count, "pct.mito")
-mycount <- AddMetaData(mycount, mycount.top_50, 'top50')
+mycount <- AddMetaData(mycount, mycount.top_50, "top50")
 tmp <- mycount@meta.data$nUMI/mycount@meta.data$nGene
 names(tmp) <- rownames(mycount@meta.data)
-mycount <- AddMetaData(mycount, tmp, 'umi.per.gene')
+mycount <- AddMetaData(mycount, tmp, "umi.per.gene")
 # mycount@meta.data$count.per.gene <- mycount@meta.data$nUMI/mycount@meta.data$nGene
 
-# mytheme <- theme_bw(base_size = 9) +
-mytheme <- theme_bw() +
-  theme(legend.position = "right",
-        axis.ticks = element_blank(),
-        axis.text.x = element_text(angle = 300, hjust = 0))
-theme_set(mytheme)
 
-gg <- VlnPlot(myumi,c("nUMI", "nGene", "top50", 'umi.per.gene','pct.Ribo', "pct.mito"), x.lab.rot = TRUE, do.return = TRUE)
+gg <- VlnPlot(myumi,
+              c("nUMI", "nGene", "top50", "umi.per.gene", "pct.Ribo", "pct.mito"),
+              x.lab.rot = TRUE, do.return = TRUE)
 # ggsave(gg,file=file.path("violinplots_comparison_UMI.pdf"),width=18,height=18)
-ggsave(gg, file=snakemake@output$pdf, width = 18, height = 18)
-# gg <- VlnPlot(mycount,c("nUMI", "nGene", "top50", 'count.per.gene','pct.Ribo', "pct.mito"), x.lab.rot = TRUE, do.return = TRUE)
+ggsave(gg, file  = snakemake@output$pdf_violine, width = 18, height = 18)
+# gg <- VlnPlot(mycount,c("nUMI", "nGene", "top50", "count.per.gene","pct.Ribo", "pct.mito"), x.lab.rot = TRUE, do.return = TRUE)
 # ggsave(gg,file=file.path("violinplots_comparison_count.pdf"),width=18,height=18)
 
 # gg <- GenePlot(object = myumi, gene1 = "nUMI", gene2 = "nGene")
 # ggsave(gg,file=file.path("violinplots_comparison.pdf"),width=18,height=18)
 
-gg <- ggplot(myumi@meta.data, aes(x = nGene, y = nUMI, color=orig.ident)) +
-  geom_point(size=.5) +
-  geom_smooth() +
-  labs(title = "Genes (pooled mouse and human set) vs UMIs for each bead",
-       x = "Number of UMIs per Bead",
-       y = "Number of Genes per Bead")
-plotname <- "umi_vs_gene"
-p <- ggplotly(gg)
-htmlwidgets::saveWidget(p,file.path(paste0(plotname,".html")))
-ggsave(gg,file=file.path(paste0(plotname,".pdf")),width=12,height=7)
 
-gg <- ggplot(myumi@meta.data, aes(x = nGene, y = nUMI, color=orig.ident)) +
-  geom_point(size=.5) +
-  geom_smooth() +
-  xlim(0,4e4) +
-  ylim(0,10e3) +
+gg <- ggplot(myumi@meta.data, aes(x = nUMI, y = nGene, color=orig.ident)) +
+  gglayers +
   labs(title = "Genes (pooled mouse and human set) vs UMIs for each bead",
-       x = "Number of UMIs per Bead",
-       y = "Number of Genes per Bead")
-plotname <- "umi_vs_gene_zoom"
-ggsave(gg,file=file.path(paste0(plotname,".pdf")),width=12,height=7)
-gg <- ggplot(myumi@meta.data, aes(x = nGene, y = nUMI, color=orig.ident)) +
-  geom_point(size=.5) +
-  geom_smooth() +
-  coord_trans(x = "log10") +
-#   scale_y_continuous(trans='log10') +
-  labs(title = "Genes (pooled mouse and human set) vs UMIs for each bead",
-       x = "Number of UMIs per Bead",
-       y = "Number of Genes per Bead")
-plotname <- "umi_vs_gene_log"
-p <- ggplotly(gg)
-htmlwidgets::saveWidget(p,file.path(paste0(plotname,".html")))
-ggsave(gg,file=file.path(paste0(plotname,".pdf")),width=12,height=7)
-gg <- ggplot(mycount@meta.data, aes(x = nGene, y = nUMI, color=orig.ident)) +
-  geom_smooth() +
-  geom_point(size=.5) +
-  labs(title = "Genes (pooled mouse and human set) vs read counts for each bead",
-       x = "Number of Reads per Bead",
-       y = "Number of Genes per Bead")
-plotname <- "count_vs_gene"
-p <- ggplotly(gg)
-htmlwidgets::saveWidget(p,file.path(paste0(plotname,".html")))
-ggsave(gg,file=file.path(paste0(plotname,".pdf")),width=12,height=7)
-gg <- ggplot(mycount@meta.data, aes(x = nGene, y = nUMI, color=orig.ident)) +
-  geom_smooth() +
-  geom_point(size=.5) +
-  xlim(0,1e5) +
-  ylim(0,10e3) +
-  labs(title = "Genes (pooled mouse and human set) vs read counts for each bead",
-       x = "Number of Reads per Bead",
-       y = "Number of Genes per Bead")
-plotname <- "count_vs_gene_zoom"
-ggsave(gg,file=file.path(paste0(plotname,".pdf")),width=12,height=7)
-gg <- ggplot(mycount@meta.data, aes(x = nGene, y = nUMI, color=orig.ident)) +
-  geom_smooth() +
-  geom_point(size=.5) +
-  coord_trans(x = "log10") +
-#  scale_y_continuous(trans='log10') +
-  labs(title = "Genes (pooled mouse and human set) vs read counts for each bead",
-       x = "Number of Reads per Bead",
-       y = "Number of Genes per Bead")
-plotname <- "count_vs_gene_log"
-p <- ggplotly(gg)
-htmlwidgets::saveWidget(p,file.path(paste0(plotname,".html")))
-ggsave(gg,file=file.path(paste0(plotname,".pdf")),width=12,height=7)
+       x = "Number of UMIs per Bead [k]",
+       y = "Number of Genes per Bead [k]")
 
-save.image(file="Seurat_objects.rdata")
+htmlwidgets::saveWidget(ggplotly(gg),
+                        file.path(getwd(), snakemake@output$html_umi_vs_gene))
+ggsave(gg, file = file.path(getwd(), snakemake@output$pdf_umi_vs_gene),
+       width = 12, height = 7)
+
+## zoom in
+ggzoom <- gg +
+  labs(title = "Genes vs UMIs for each bead (zoomed in)",
+       x = "Number of UMIs per Bead",
+       y = "Number of Genes per Bead") +
+  ylim(0, 1e4) +
+  xlim(0, 3e4)
+ggsave(ggzoom, file = file.path(getwd(), snakemake@output$pdf_umi_vs_gene_zoom),
+       width = 12, height = 7)
+
+gglog <- gg +
+  coord_trans(x = "log10")
+#   scale_y_continuous(trans="log10") +
+htmlwidgets::saveWidget(ggplotly(gglog),
+                     file.path(getwd(), snakemake@output$html_umi_vs_gene_log))
+ggsave(gglog, file = file.path(getwd(), snakemake@output$pdf_umi_vs_gene_log),
+       width = 12, height = 7)
+
+################################################################################
+## same for Counts instead UMIs (using mycount object)
+gg <- ggplot(mycount@meta.data, aes(x = nUMI, y = nGene, color=orig.ident)) +
+  gglayers +
+  labs(title = "Genes (pooled mouse and human set) vs Counts for each bead",
+       x = "Number of Counts per Bead [k]",
+       y = "Number of Genes per Bead [k]")
+
+htmlwidgets::saveWidget(ggplotly(gg),
+                        file.path(getwd(), snakemake@output$html_count_vs_gene))
+ggsave(gg, file = file.path(getwd(), snakemake@output$pdf_count_vs_gene),
+       width = 12, height = 7)
+
+## zoom in limiting
+ggzoom <- gg +
+  labs(title = "Genes vs UMIs for each bead (zoomed in)",
+       x = "Number of UMIs per Bead",
+       y = "Number of Genes per Bead") +
+  ylim(0, 12e3) +
+  xlim(0, 1e5)
+ggsave(ggzoom, file = file.path(getwd(), snakemake@output$pdf_count_vs_gene_zoom),
+       width = 12, height = 7)
+
+gglog <- gg +
+  coord_trans(x = "log10")
+#   scale_y_continuous(trans="log10") +
+htmlwidgets::saveWidget(ggplotly(gglog),
+                     file.path(getwd(), snakemake@output$html_count_vs_gene_log))
+ggsave(gglog, file = file.path(getwd(), snakemake@output$pdf_count_vs_gene_log),
+       width = 12, height = 7)
+
+save(snakemake, myumi, mycount,
+     file=file.path(getwd(), snakemake@output$R_objects))

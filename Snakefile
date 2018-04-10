@@ -94,8 +94,19 @@ rule map:
         expand('plots/{sample}_knee_plot.pdf', sample=samples.index),
         'reports/star.html',
         'plots/violinplots_comparison_UMI.pdf',
-#        'summary/umi_expression_matrix.tsv',
-#        'summary/counts_expression_matrix.tsv',
+        'plots/UMI_vs_counts.html',
+        'plots/UMI_vs_counts.pdf',
+        'plots/UMI_vs_gene.html',
+        'plots/UMI_vs_gene.pdf',
+        'plots/UMI_vs_gene_zoom.pdf',
+        'plots/UMI_vs_gene_log.html',
+        'plots/UMI_vs_gene_log.pdf',
+        'plots/Count_vs_gene.html',
+        'plots/Count_vs_gene.pdf',
+        'plots/Count_vs_gene_zoom.pdf',
+        'plots/Count_vs_gene_log.html',
+        'plots/Count_vs_gene_log.pdf',
+        'summary/R_Seurat_objects.rdata',
         'plots/yield.pdf'
         
 rule extract:

@@ -196,6 +196,19 @@ rule violine_plots:
 #		edit_distance=config['EXTRACTION']['UMI-edit-distance']
 	conda: '../envs/plots_ext.yaml'
 	output:
-		pdf='plots/violinplots_comparison_UMI.pdf'
+		pdf_violine='plots/violinplots_comparison_UMI.pdf',
+		html_umivscounts='plots/UMI_vs_counts.html',
+		pdf_umivscounts='plots/UMI_vs_counts.pdf',
+		html_umi_vs_gene='plots/UMI_vs_gene.html',
+		pdf_umi_vs_gene='plots/UMI_vs_gene.pdf',
+		pdf_umi_vs_gene_zoom='plots/UMI_vs_gene_zoom.pdf',
+		html_umi_vs_gene_log='plots/UMI_vs_gene_log.html',
+		pdf_umi_vs_gene_log='plots/UMI_vs_gene_log.pdf',
+		html_count_vs_gene='plots/Count_vs_gene.html',
+		pdf_count_vs_gene='plots/Count_vs_gene.pdf',
+		pdf_count_vs_gene_zoom='plots/Count_vs_gene_zoom.pdf',
+		html_count_vs_gene_log='plots/Count_vs_gene_log.html',
+		pdf_count_vs_gene_log='plots/Count_vs_gene_log.pdf',
+		R_objects='summary/R_Seurat_objects.rdata'
 	script:
 		'../scripts/plot_violine.R'
