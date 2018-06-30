@@ -1,4 +1,5 @@
 import math
+import platform
 """Generate all the meta data files"""
 
 #Which rules will be run on the host computer and not sent to nodes
@@ -62,7 +63,8 @@ rule create_intervals:
 		dropseq_wrapper=config['LOCAL']['dropseq-wrapper'],
 		memory=config['LOCAL']['memory'],
 		reference_directory=config['META']['reference-directory'],
-		reference_prefix=config['META']['reference-file'].split('.fasta')[0]
+		reference_prefix=re.split(".fasta|.fa",config['META']['reference-file'])[0]
+		
 	output:
 		'{}.rRNA.intervals'.format(reference_prefix)
 	shell:
@@ -76,7 +78,10 @@ def get_sjdbOverhang(wildcards):
 	return(int(wildcards.read_length)-1)
 
 def get_genomeChrBinNbits(file):
-	genomeLength = shell("wc -c {} | cut -d' ' -f1".format(file), iterable=True)
+	if (platform.system() == 'Darwin'):
+		genomeLength = shell("wc -c {} | cut -d' ' -f2".format(file), iterable=True)
+	else:
+		genomeLength = shell("wc -c {} | cut -d' ' -f1".format(file), iterable=True)
 	genomeLength = int(next(genomeLength))
 	referenceNumber = shell('grep "^>" {} | wc -l'.format(file), iterable=True)
 	referenceNumber = int(next(referenceNumber))
