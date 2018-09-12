@@ -61,7 +61,8 @@ rule all:
         expand('plots/{sample}_rna_metrics.pdf', sample=samples.index),
         'summary/umi_expression_matrix.tsv',
         'summary/counts_expression_matrix.tsv'
-        
+
+
 rule meta:
     input:
         '{}.refFlat'.format(annotation_prefix),
@@ -99,14 +100,8 @@ rule map:
         'plots/UMI_vs_counts.pdf',
         'plots/UMI_vs_gene.html',
         'plots/UMI_vs_gene.pdf',
-        'plots/UMI_vs_gene_zoom.pdf',
-        'plots/UMI_vs_gene_log.html',
-        'plots/UMI_vs_gene_log.pdf',
         'plots/Count_vs_gene.html',
         'plots/Count_vs_gene.pdf',
-        'plots/Count_vs_gene_zoom.pdf',
-        'plots/Count_vs_gene_log.html',
-        'plots/Count_vs_gene_log.pdf',
         'summary/R_Seurat_objects.rdata',
         'plots/yield.pdf'
         

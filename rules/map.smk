@@ -32,7 +32,7 @@ rule STAR_align:
 		index=lambda wildcards: star_index_prefix + '_' + str(samples.loc[wildcards.sample,'read_length']) + '/'	
 	threads: 24
 	wrapper:
-		"0.22.0/bio/star/align"
+		"0.27.1/bio/star/align"
 
 rule sort_sam:
 	input:
@@ -88,13 +88,13 @@ rule TagReadWithGeneExon:
 		data='data/{sample}.Aligned.merged.bam',
 		refFlat='{}.refFlat'.format(annotation_prefix)
 	params:
-		dropseq_wrapper=config['LOCAL']['dropseq-wrapper'],
 		memory=config['LOCAL']['memory'],
 		temp_directory=config['LOCAL']['temp-directory']
 	output:
 		temp('data/{sample}_gene_exon_tagged.bam')
+	conda: '../envs/dropseq_tools.yaml'
 	shell:
-		"""{params.dropseq_wrapper} -t {params.temp_directory} -m {params.memory} -p TagReadWithGeneExon\
+		"""export _JAVA_OPTIONS=-Djava.io.tmpdir={params.temp_directory} && TagReadWithGeneExon -m {params.memory}\
 		INPUT={input.data}\
 		OUTPUT={output}\
 		ANNOTATIONS_FILE={input.refFlat}\
@@ -111,12 +111,12 @@ rule bead_errors_metrics:
 		out_stats='logs/{sample}_synthesis_stats.txt',
 		summary='logs/{sample}_synthesis_stats_summary.txt',
 		barcodes=lambda wildcards: int(samples.loc[wildcards.sample,'expected_cells']) * 2,
-		dropseq_wrapper=config['LOCAL']['dropseq-wrapper'],
 		memory =config['LOCAL']['memory'],
 		SmartAdapter=config['FILTER']['5-prime-smart-adapter'],
 		temp_directory=config['LOCAL']['temp-directory']
+	conda: '../envs/dropseq_tools.yaml'
 	shell:
-		"""{params.dropseq_wrapper} -t {params.temp_directory} -m {params.memory} -p DetectBeadSynthesisErrors\
+		"""export _JAVA_OPTIONS=-Djava.io.tmpdir={params.temp_directory} && DetectBeadSynthesisErrors -m {params.memory}\
 		INPUT={input}\
 		OUTPUT={output}\
 		OUTPUT_STATS={params.out_stats}\
@@ -129,13 +129,13 @@ rule bam_hist:
 	input:
 		'data/{sample}_final.bam'
 	params:
-		dropseq_wrapper=config['LOCAL']['dropseq-wrapper'],
 		memory=config['LOCAL']['memory'],
 		temp_directory=config['LOCAL']['temp-directory']
 	output:
 		'logs/{sample}_hist_out_cell.txt'
+	conda: '../envs/dropseq_tools.yaml'
 	shell:
-		"""{params.dropseq_wrapper} -p BAMTagHistogram -m {params.memory} -t {params.temp_directory}\
+		"""export _JAVA_OPTIONS=-Djava.io.tmpdir={params.temp_directory} && BAMTagHistogram -m {params.memory}\
 		TAG=XC\
 		I={input}\
 		READ_QUALITY=10\
@@ -168,7 +168,7 @@ rule plot_knee_plot:
 	input:
 		'logs/{sample}_hist_out_cell.txt'
 	params: 
-		cells=lambda wildcards: samples.loc[wildcards.sample,'expected_cells'],
+		cells=lambda wildcards: int(samples.loc[wildcards.sample,'expected_cells']),
 		edit_distance=config['EXTRACTION']['UMI-edit-distance']
 	conda: '../envs/plots.yaml'
 	output:
@@ -181,7 +181,7 @@ rule plot_knee_plot_whitelist:
 		data='logs/{sample}_hist_out_cell.txt',
 		barcodes='barcodes.csv'
 	params: 
-		cells=lambda wildcards: samples.loc[wildcards.sample,'expected_cells']
+		cells=lambda wildcards: int(samples.loc[wildcards.sample,'expected_cells'])
 	conda: '../envs/plots.yaml'
 	output:
 		pdf='plots/{sample}_knee_plot.pdf'
@@ -193,7 +193,7 @@ rule violine_plots:
 		UMIs='summary/umi_expression_matrix.tsv',
 		counts='summary/counts_expression_matrix.tsv',
 		design='samples.csv'
-#	params: 
+#	params:
 #		cells=lambda wildcards: samples.loc[wildcards.sample,'expected_cells'],
 #		edit_distance=config['EXTRACTION']['UMI-edit-distance']
 	conda: '../envs/plots_ext.yaml'
@@ -203,14 +203,8 @@ rule violine_plots:
 		pdf_umivscounts='plots/UMI_vs_counts.pdf',
 		html_umi_vs_gene='plots/UMI_vs_gene.html',
 		pdf_umi_vs_gene='plots/UMI_vs_gene.pdf',
-		pdf_umi_vs_gene_zoom='plots/UMI_vs_gene_zoom.pdf',
-		html_umi_vs_gene_log='plots/UMI_vs_gene_log.html',
-		pdf_umi_vs_gene_log='plots/UMI_vs_gene_log.pdf',
 		html_count_vs_gene='plots/Count_vs_gene.html',
 		pdf_count_vs_gene='plots/Count_vs_gene.pdf',
-		pdf_count_vs_gene_zoom='plots/Count_vs_gene_zoom.pdf',
-		html_count_vs_gene_log='plots/Count_vs_gene_log.html',
-		pdf_count_vs_gene_log='plots/Count_vs_gene_log.pdf',
 		R_objects='summary/R_Seurat_objects.rdata'
 	script:
 		'../scripts/plot_violine.R'
