@@ -1,3 +1,4 @@
+save(snakemake, file="snakemake_object.rdata")
 #' ---
 #' title:  plot_violine.R
 #' author: Sebastian Mueller (sebm_at_posteo.de)
@@ -7,7 +8,6 @@
 # If you wish to access the snakefile object first invoke snakemake and save the session automatically
 # Since there are no debug flags to my knowledge, just uncomment the line below and run snakemake which
 # creates an R object that can be loaded into a custom R session
-# save.image(file="R_workspace_debug.rdata")
 # load("R_workspace_debug.rdata")
 ####/debug
 library(plyr)
@@ -57,6 +57,7 @@ mycount <- CreateSeuratObject(raw.data = count_matrix, meta.data = metaData)
 mycount <- SetAllIdent(object = mycount, id = "samples")
 mycount@meta.data$orig.ident <- mycount@meta.data$samples
 # turn off filtering
+save.image(file="R_workspace_debug.rdata")
 
 # note, the @meta.data slot contains usefull summary stuff
 # head(mycount@meta.data,2)
@@ -167,23 +168,6 @@ htmlwidgets::saveWidget(ggplotly(gg),
 ggsave(gg, file = file.path(getwd(), snakemake@output$pdf_count_vs_gene),
         width = 12, height = 7)
 
-# ## zoom in limiting
-# ggzoom <- gg +
-#   labs(title = "Genes vs UMIs for each bead (zoomed in)",
-#        x = "Number of UMIs per Bead",
-#        y = "Number of Genes per Bead") +
-#   ylim(0, 12e3) +
-#   xlim(0, 1e5)
-# ggsave(ggzoom, file = file.path(getwd(), snakemake@output$pdf_count_vs_gene_zoom),
-#        width = 12, height = 7)
-
-#gglog <- gg +
-#  coord_trans(x = "log10")
-##   scale_y_continuous(trans="log10") +
-#htmlwidgets::saveWidget(ggplotly(gglog),
-#                     file.path(getwd(), snakemake@output$html_count_vs_gene_log))
-#ggsave(gglog, file = file.path(getwd(), snakemake@output$pdf_count_vs_gene_log),
-#       width = 12, height = 7)
 
 # head(meta.data,2)
 #                              nGene nUMI                    cellNames         samples      barcode expected_cells read_length  batch      orig.ident pct.sribo  pct.lribo  pct.Ribo  pct.mito     top50 umi.per.gene
