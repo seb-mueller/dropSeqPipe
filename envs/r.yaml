@@ -4,6 +4,8 @@ channels:
 dependencies:
   - r
   - r-ggplot2
+  - bioconductor-scater
+  - bioconductor-dropletutils
   - r-gridextra
   - r-viridis
   - r-stringdist
