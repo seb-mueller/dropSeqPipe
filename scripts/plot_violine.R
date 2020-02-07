@@ -29,6 +29,7 @@ library(RColorBrewer, quietly = TRUE, warn.conflicts = FALSE)
 library(devtools, quietly = TRUE, warn.conflicts = FALSE)
 library(Seurat, quietly = TRUE, warn.conflicts = FALSE)
 library(plotly, quietly = TRUE, warn.conflicts = FALSE)
+library(scater, quietly = TRUE, warn.conflicts = FALSE)
 
 # rule map in Snakefile
 # rule map:
@@ -195,15 +196,49 @@ gg <- ggplot(meta.data, aes(x = nCounts, y = nFeature_RNA, color = orig.ident)) 
 ggsave(gg, file = snakemake@output$pdf_count_vs_gene, width = 12, height = 7)
 
 
+################################################################################
+## same for Counts instead UMIs (using mycount object)
+sce <- as.SingleCellExperiment(seuratobj)
+
+path_advplots <- "results/plots/advanced"
+dir.create(path_advplots)
+gg <- plotHighestExprs(sce, exprs_values = "counts")
+ggsave(gg, file = file.path(path_advplots, "plot_HighestExprs.pdf"), width = 12, height = 7)
+gg <- plotScater(sce, block1 = "ident", nfeatures = 1000)
+ggsave(gg, file = file.path(path_advplots, "plot_Scater.pdf"), width = 12, height = 7)
+
+seuratobj <- NormalizeData(object = seuratobj)
+seuratobj <- FindVariableFeatures(object = seuratobj)
+seuratobj <- ScaleData(object = seuratobj)
+seuratobj <- RunPCA(object = seuratobj)
+seuratobj <- FindNeighbors(object = seuratobj)
+seuratobj <- FindClusters(object = seuratobj)
+seuratobj <- RunTSNE(object = seuratobj, check_duplicates = FALSE)
+# DimPlot(object = seuratobj)
+gg <- DimPlot(object = seuratobj, reduction = "tsne")
+ggsave(gg, file = file.path(path_advplots, "plot_tsne.pdf"), width = 12, height = 7)
+gg <- FeaturePlot(seuratobj, features = 
+  c("nCount_RNA", "nFeature_RNA", "top50", "umi.per.gene", "pct.Ribo", "pct.mito"))
+ggsave(gg, file = file.path(path_advplots, "plot_tsne_coloredbyfeatures.pdf"), width = 15, height = 20)
+
+top10 <- head(VariableFeatures(seuratobj), 10)
+plot1 <- VariableFeaturePlot(seuratobj)
+plot2 <- LabelPoints(plot = plot1, points = top10, repel = TRUE)
+# gg <- CombinePlots(plots = list(plot1, plot2))
+ggsave(plot2, file = file.path(path_advplots, "plot_VariableFeature.pdf"), width = 8, height = 8)
+
+
 # head(meta.data,2)
 #                              nFeature_RNA nCount_RNA                    cellNames         samples      barcode expected_cells read_length  batch      orig.ident pct.sribo  pct.lribo  pct.Ribo  pct.mito     top50 umi.per.gene
 # sample1_GAGTCTGAGGCG     6    6 sample1_GAGTCTGAGGCG sample1 GAGTCTGAGGCG            100         100 batch1 sample1 0.0000000 0.00000000 0.0000000 0.0000000 1.0000000     1.000000
 # sample1_CAGCCCTCAGTA   264  437 sample1_CAGCCCTCAGTA sample1 CAGCCCTCAGTA            100         100 batch1 sample1 0.0389016 0.07551487 0.1144165 0.0228833 0.5102975     1.655303
 
 # saving snakemake meta information into misc slot so all can be exported as one object
-Misc(object = pbmc_small, slot = "misc")  <- list(snakemake)
+Misc(object = seuratobj_small, slot = "misc")  <- list(snakemake)
 # exporting R Seurat objects into summary/R_Seurat_objects.rdata
 saveRDS(seuratobj, file = file.path(snakemake@output$R_objects))
+# exporting R scater object into summary/R_Seurat_objects.rdata
+saveRDS(sce, file = file.path(snakemake@wildcards$results_dir, 'summary', "R_scater_object.rds"))
 
 if (debug_flag) {
   save.image(file = file.path(path_debug, "plot_violin_workspace.rdata"))
