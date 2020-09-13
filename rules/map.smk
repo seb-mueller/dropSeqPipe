@@ -18,13 +18,13 @@ rule STAR_align:
             build,
             release) + str(samples.loc[wildcards.sample,'read_length'])
     output:
-        temp('{results_dir}/samples/{sample}/Aligned.out.bam'),
-        '{results_dir}/samples/{sample}/Unmapped.out.mate1'
+        bam=temp('{results_dir}/samples/{sample}/Aligned.sortedByCoord.out.bam'),
+        unmapped='{results_dir}/samples/{sample}/Unmapped.out.mate1',
 
     log:
         '{results_dir}/samples/{sample}/Log.final.out'
     params:
-        extra="""--outSAMtype BAM Unsorted\
+        extra="""--outSAMtype BAM SortedByCoordinate\
                 --outReadsUnmapped Fastx\
                 --outFilterMismatchNmax {}\
                 --outFilterMismatchNoverLmax {}\
@@ -92,7 +92,7 @@ rule MergeBamAlignment:
 
 rule TagReadWithGeneExon:
     input:
-        data='{results_dir}/samples/{sample}/Aligned.repaired.bam',
+        data='{results_dir}/samples/{sample}/Aligned.sortedByCoord.out.bam',
         refFlat=expand("{ref_path}/{species}_{build}_{release}/curated_annotation.refFlat",
             ref_path=config['META']['reference-directory'],
             species=species,
@@ -182,7 +182,7 @@ rule plot_yield:
     input:
         R1_filtered=expand('{results_dir}/logs/cutadapt/{sample}_R1.qc.txt', sample=samples.index, results_dir=results_dir),
         R2_filtered=expand('{results_dir}/logs/cutadapt/{sample}_R2.qc.txt', sample=samples.index, results_dir=results_dir),
-        repaired=expand('{results_dir}/logs/bbmap/{sample}_repair.txt', sample=samples.index, results_dir=results_dir),
+        repaired=expand('{results_dir}/logs/repair/{sample}.csv', sample=samples.index, results_dir=results_dir),
         STAR_output=expand('{results_dir}/samples/{sample}/Log.final.out', sample=samples.index, results_dir=results_dir),
     params:
         BC_length=config['FILTER']['cell-barcode']['end'] - config['FILTER']['cell-barcode']['start']+1,
@@ -199,7 +199,7 @@ rule plot_yield:
 rule plot_knee_plot:
     input:
         data='{results_dir}/logs/dropseq_tools/{sample}_hist_out_cell.txt',
-        barcodes='{results_dir}/samples/{sample}/barcodes.csv'
+        barcodes='{results_dir}/samples/{sample}/filtered_barcodes.csv'
     params:
         cells=lambda wildcards: int(samples.loc[wildcards.sample,'expected_cells'])
     conda: '../envs/r.yaml'
