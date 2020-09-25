@@ -1,23 +1,14 @@
 
 
-ruleorder: extend_barcode_whitelist > extend_barcode_top
-ruleorder: extend_barcode_whitelist > get_cell_whitelist
+
+ruleorder: copy_whitelist > get_cell_whitelist
 
 
 localrules:
     get_cell_whitelist,
-    extend_barcode_top
+    copy_whitelist,
+    filter_top_barcodes
 
-rule extend_barcode_whitelist:
-    input:
-        whitelist=barcode_whitelist
-    output:
-        barcodes='{results_dir}/samples/{sample}/barcodes.csv',
-        barcode_ref='{results_dir}/samples/{sample}/barcode_ref.pkl',
-        barcode_ext_ref='{results_dir}/samples/{sample}/barcode_ext_ref.pkl',
-        barcode_mapping='{results_dir}/samples/{sample}/empty_barcode_mapping.pkl'
-    script:
-        '../scripts/generate_extended_ref.py'
 
 rule get_top_barcodes:
     input:
@@ -45,27 +36,44 @@ rule get_cell_whitelist:
     shell:
         """cat {input} | cut -f 1 > {output}"""
 
-
-rule extend_barcode_top:
+rule copy_whitelist:
     input:
-        whitelist='{results_dir}/samples/{sample}/top_barcodes.csv'
+        whitelist = barcode_whitelist
     output:
-        barcode_ref='{results_dir}/samples/{sample}/barcode_ref.pkl',
-        barcode_ext_ref='{results_dir}/samples/{sample}/barcode_ext_ref.pkl',
-        barcode_mapping='{results_dir}/samples/{sample}/empty_barcode_mapping.pkl'
-    script:
-        '../scripts/umi_tools_extended_ref.py'
+        '{results_dir}/samples/{sample}/barcodes.csv'
+    shell:
+        """cp {input.whitelist} {output}"""
 
 
-rule repair_barcodes:
+rule bam_hist:
     input:
-        bam='{results_dir}/samples/{sample}/Aligned.merged.bam',
-        barcode_ref='{results_dir}/samples/{sample}/barcode_ref.pkl',
-        barcode_ext_ref='{results_dir}/samples/{sample}/barcode_ext_ref.pkl',
-        barcode_mapping='{results_dir}/samples/{sample}/empty_barcode_mapping.pkl'
-    conda: '../envs/merge_bam.yaml'
+        '{results_dir}/samples/{sample}/final.bam'
+    params:
+        memory=config['LOCAL']['memory'],
+        temp_directory=config['LOCAL']['temp-directory']
     output:
-        bam=temp('{results_dir}/samples/{sample}/Aligned.repaired.bam'),
-        barcode_mapping_counts='{results_dir}/samples/{sample}/barcode_mapping_counts.pkl'
+        '{results_dir}/logs/dropseq_tools/{sample}_hist_out_cell.txt'
+    conda: '../envs/dropseq_tools.yaml'
+    shell:
+        """export _JAVA_OPTIONS=-Djava.io.tmpdir={params.temp_directory} && BamTagHistogram -m {params.memory}\
+        TAG=CR\
+        I={input}\
+        READ_MQ=10\
+        O={output}
+        """
+        # tag should be XR(normal) or CR(solo)??
+
+rule filter_top_barcodes:
+    input:
+        whitelist='{results_dir}/samples/{sample}/barcodes.csv',
+        top_barcodes='{results_dir}/logs/dropseq_tools/{sample}_hist_out_cell.txt'
+    output:
+        filtered_barcodes='{results_dir}/samples/{sample}/filtered_barcodes.csv'
+    log:
+        filter_log='{results_dir}/logs/custom/{sample}_unrecognized_barcodes.csv'
+    params:
+        num_cells=lambda wildcards: round(int(samples.loc[wildcards.sample,'expected_cells']))
+    # enforce conde env to ensure consistent python version for python scripts
+    conda: '../envs/cutadapt.yaml'
     script:
-        '../scripts/repair_barcodes.py'
+        '../scripts/whitelist_check.py'
