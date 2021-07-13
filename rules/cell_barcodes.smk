@@ -1,12 +1,8 @@
 
 
 
-ruleorder: copy_whitelist > get_cell_whitelist
-
-
 localrules:
     get_cell_whitelist,
-    copy_whitelist,
     filter_top_barcodes
 
 
@@ -19,7 +15,7 @@ rule get_top_barcodes:
     params:
         cell_barcode_length=(config['FILTER']['cell-barcode']['end'] - config['FILTER']['cell-barcode']['start'] + 1),
         umi_barcode_length=(config['FILTER']['UMI-barcode']['end'] - config['FILTER']['UMI-barcode']['start'] + 1),
-        num_cells=lambda wildcards: round(int(samples.loc[wildcards.sample,'expected_cells'])*1.2),
+        num_cells=lambda wildcards: round(int(samples.loc[wildcards.sample,'expected_cells'])),
     shell:
         """umi_tools whitelist\
         --stdin {input}\
@@ -27,23 +23,6 @@ rule get_top_barcodes:
         --extract-method=regex\
         --set-cell-number={params.num_cells}\
         --log2stderr > {output}"""
-
-rule get_cell_whitelist:
-    input:
-        '{results_dir}/samples/{sample}/top_barcodes.csv'
-    output:
-        '{results_dir}/samples/{sample}/barcodes.csv'
-    shell:
-        """cat {input} | cut -f 1 > {output}"""
-
-rule copy_whitelist:
-    input:
-        whitelist = barcode_whitelist
-    output:
-        '{results_dir}/samples/{sample}/barcodes.csv'
-    shell:
-        """cp {input.whitelist} {output}"""
-
 
 rule bam_hist:
     input:
@@ -56,7 +35,7 @@ rule bam_hist:
     conda: '../envs/dropseq_tools.yaml'
     shell:
         """export _JAVA_OPTIONS=-Djava.io.tmpdir={params.temp_directory} && BamTagHistogram -m {params.memory}\
-        TAG=CR\
+        TAG=XC\
         I={input}\
         READ_MQ=10\
         O={output}

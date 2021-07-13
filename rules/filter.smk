@@ -28,7 +28,8 @@ rule cutadapt_R1:
         """cutadapt\
         --max-n {params.max_n}\
         -a file:{input.adapters}\
-        -g file:{input.adapters}\
+        #-g file:{input.adapters}\
+        --minimum-length {params.minimum_length}\
         -q {params.barcode_quality},{params.barcode_quality}\
         --cores={threads}\
         --overlap {params.cell_barcode_length}\
@@ -44,6 +45,7 @@ rule cutadapt_R2:
     params:
         extra_params=config['FILTER']['cutadapt']['R2']['extra-params'],
         read_quality=config['FILTER']['cutadapt']['R2']['quality-filter'],
+        minimum_length=config['FILTER']['cutadapt']['R2']['minimum-length'],
         adapters_minimum_overlap=config['FILTER']['cutadapt']['R2']['minimum-adapters-overlap'],
     threads: 10
     log:
@@ -52,12 +54,14 @@ rule cutadapt_R2:
     shell:
         """cutadapt\
         -a file:{input.adapters}\
-        -g file:{input.adapters}\
         -q {params.read_quality}\
+        --minimum-length {params.minimum_length}\
         --cores={threads}\
         --overlap {params.adapters_minimum_overlap}\
         -o {output.fastq} {input.R2}\
         {params.extra_params} > {log.qc}"""
+        # Regular 5’ adapter
+        #-g file:{input.adapters}\
 
 rule clean_cutadapt:
     input:
@@ -70,44 +74,44 @@ rule clean_cutadapt:
     script:
         '../scripts/clean_cutadapt.py'
 
+#rule repair:
+#    input:
+#        R1='{results_dir}/samples/{sample}/trimmed_R1.fastq.gz',
+#        R2='{results_dir}/samples/{sample}/trimmed_R2.fastq.gz'
+#    output:
+#        R1='{results_dir}/samples/{sample}/trimmed_repaired_R1.fastq.gz',
+#        R2='{results_dir}/samples/{sample}/trimmed_repaired_R2.fastq.gz'
+#    params:
+#        min_r2_length=config['FILTER']['cutadapt']['R2']['minimum-length'],
+#        barcode_length=config['FILTER']['UMI-barcode']['end']
+#    log:
+#        stats='{results_dir}/logs/repair/{sample}.csv'
+#    conda: '../envs/merge_bam.yaml'
+#    script: '../scripts/repair.py'
+
+
 rule repair:
-    input:
-        R1='{results_dir}/samples/{sample}/trimmed_R1.fastq.gz',
-        R2='{results_dir}/samples/{sample}/trimmed_R2.fastq.gz'
-    output:
-        R1='{results_dir}/samples/{sample}/trimmed_repaired_R1.fastq.gz',
-        R2='{results_dir}/samples/{sample}/trimmed_repaired_R2.fastq.gz'
-    params:
-        min_r2_length=config['FILTER']['cutadapt']['R2']['minimum-length'],
-        barcode_length=config['FILTER']['UMI-barcode']['end']
-    log:
-        stats='{results_dir}/logs/repair/{sample}.csv'
-    conda: '../envs/merge_bam.yaml'
-    script: '../scripts/repair.py'
-
-
-# rule repair:
-#     input:
-#         R1='{results_dir}/samples/{sample}/trimmed_R1.fastq.gz',
-#         R2='{results_dir}/samples/{sample}/trimmed_R2.fastq.gz'
-#     output:
-#         R1='{results_dir}/samples/{sample}/trimmed_repaired_R1.fastq.gz',
-#         R2='{results_dir}/samples/{sample}/trimmed_repaired_R2.fastq.gz'
-#     log:
-#         '{results_dir}/logs/bbmap/{sample}_repair.txt'
-#     params:
-#         memory='{}g'.format(2*int(config['LOCAL']['memory'].rstrip('g')) )
-#     conda: '../envs/bbmap.yaml'
-#     threads: 4
-#     shell:
-#         """repair.sh\
-#         -Xmx{params.memory}\
-#         in={input.R1}\
-#         in2={input.R2}\
-#         out1={output.R1}\
-#         out2={output.R2}\
-#         repair=t\
-#         threads={threads} 2> {log}"""
+     input:
+         R1=get_R1_files,
+         R2='{results_dir}/samples/{sample}/trimmed_R2.fastq.gz'
+     output:
+         R1='{results_dir}/samples/{sample}/trimmed_repaired_R1.fastq.gz',
+         R2='{results_dir}/samples/{sample}/trimmed_repaired_R2.fastq.gz'
+     log:
+         '{results_dir}/logs/bbmap/{sample}_repair.txt'
+     params:
+         memory='{}g'.format(int(config['LOCAL']['memory'].rstrip('g')) )
+     conda: '../envs/bbmap.yaml'
+     threads: 4
+     shell:
+         """repair.sh\
+         -Xmx{params.memory}\
+         in1={input.R1}\
+         in2={input.R2}\
+         out1={output.R1}\
+         out2={output.R2}\
+         repair=t\
+         threads={threads} 2> {log}"""
 
 # rule detect_barcodes:
 #     input:

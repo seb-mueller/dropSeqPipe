@@ -18,6 +18,8 @@ barcodes_struct = {
 	'UMI_start':snakemake.params['UMI_start'],
 	'UMI_end':snakemake.params['UMI_end']
 	}
+print("merge_bam.py:")
+print(barcodes_struct)
 
 def parse_barcodes(fastq_parser, query_name, read_barcodes, barcodes_struct):
 	for fastq_R1 in fastq_parser:
@@ -33,15 +35,18 @@ def parse_barcodes(fastq_parser, query_name, read_barcodes, barcodes_struct):
 		if (R1_id == query_name):
 			return(fastq_parser,read_barcodes)
 	return(fastq_parser,read_barcodes)
-	
-infile_bam = pysam.AlignmentFile(snakemake.input[0], "rb")
 
+print("Reading in: ", snakemake.input[0])
+infile_bam = pysam.AlignmentFile(snakemake.input[0], "rb")
+print("Reading in: ", snakemake.input[1])
 fastq_parser = SeqIO.parse(gzip.open(snakemake.input[1], "rt"), "fastq")
 
 outfile = pysam.AlignmentFile(snakemake.output[0], "wb", template=infile_bam)
 
 read_barcodes = defaultdict(lambda :{'XC':'','XM':''})
+print("Start tagging bam file with XC and XM tags")
 
+unmatched_barcodes=0
 for bam_read in infile_bam:
 	if(discard_secondary_alignements & bam_read.is_secondary):
 		continue
@@ -55,8 +60,11 @@ for bam_read in infile_bam:
 	else:
 		fastq_parser,read_barcodes = parse_barcodes(fastq_parser, bam_read.query_name, read_barcodes, barcodes_struct)
 		if (bam_read.query_name) not in read_barcodes:
-			raise SystemExit('Read {} from mapped file is missing in reference fastq file!'.format(bam_read.query_name))
-			os.remove(snakemake.output[0])
+			#raise SystemExit('Read {} from mapped file is missing in reference fastq file!'.format(bam_read.query_name))
+			#os.remove(snakemake.output[0])
+			#print('Read {} from mapped file is missing in reference fastq file!'.format(bam_read.query_name))
+			unmatched_barcodes=unmatched_barcodes+1
+			continue
 		current_barcodes = read_barcodes.pop(bam_read.query_name)
 		tags = bam_read.get_tags()
 		tags.extend([
@@ -64,3 +72,6 @@ for bam_read in infile_bam:
 			('XM', current_barcodes['XM'],'Z')])
 		bam_read.set_tags(tags)
 	outfile.write(bam_read)
+
+print("finished merge_bam.py. Output in :", snakemake.output[0])
+print("# of unmatched barcodes", unmatched_barcodes)

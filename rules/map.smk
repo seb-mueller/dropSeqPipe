@@ -24,14 +24,17 @@ rule STAR_align:
     log:
         '{results_dir}/samples/{sample}/Log.final.out'
     params:
-        extra="""--outSAMtype BAM SortedByCoordinate\
+        extra=lambda wildcards: '--outTmpDir {}/{}\
+                --outSAMtype BAM SortedByCoordinate\
                 --outReadsUnmapped Fastx\
                 --outFilterMismatchNmax {}\
                 --outFilterMismatchNoverLmax {}\
                 --outFilterMismatchNoverReadLmax {}\
                 --outFilterMatchNmin {}\
                 --outFilterScoreMinOverLread {}\
-                --outFilterMatchNminOverLread {}""".format(
+                --outFilterMatchNminOverLread {}'.format(
+                config['LOCAL']['temp-directory'],
+                wildcards.sample,
                 config['MAPPING']['STAR']['outFilterMismatchNmax'],
                 config['MAPPING']['STAR']['outFilterMismatchNoverLmax'],
                 config['MAPPING']['STAR']['outFilterMismatchNoverReadLmax'],
@@ -47,7 +50,7 @@ rule STAR_align:
         "shub://seb-mueller/singularity_dropSeqPipe:v04"
     threads: 24
     wrapper:
-        "0.50.4/bio/star/align"
+        "0.66.0/bio/star/align"
 
 
 
@@ -70,9 +73,10 @@ rule pigz_unmapped:
     shell:
         """pigz -p 4 {input}"""
 
+# tagging bam file with XC and XM tags (manual python script)
 rule MergeBamAlignment:
     input:
-        mapped='{results_dir}/samples/{sample}/Aligned.out.bam',
+        mapped='{results_dir}/samples/{sample}/Aligned.sortedByCoord.out.bam',
         R1_ref = '{results_dir}/samples/{sample}/trimmed_repaired_R1.fastq.gz'
     output:
         temp('{results_dir}/samples/{sample}/Aligned.merged.bam')
@@ -89,10 +93,12 @@ rule MergeBamAlignment:
 # Note: rule repair_barcodes (cell_barcodes.smk) creates Aligned.repaired.bam
 # this is using barcode information (i.e. dependent on expected_cells in config.yaml)
 
-
+# adds 3 BAM tags for each read, ​ gn​​ [gene name], ​ gs ​ [gene strand] and ​ gf​​ [gene function]
+# tags can have more than one value, and the values are comma separated
+# Note: formerly, this was done by TagReadWithGeneFunction adding a BAM tag “GE” onto reads when the read overlaps the exon of a gene
 rule TagReadWithGeneExon:
     input:
-        data='{results_dir}/samples/{sample}/Aligned.sortedByCoord.out.bam',
+        data='{results_dir}/samples/{sample}/Aligned.merged.bam',
         refFlat=expand("{ref_path}/{species}_{build}_{release}/curated_annotation.refFlat",
             ref_path=config['META']['reference-directory'],
             species=species,
@@ -159,25 +165,6 @@ rule bead_errors_metrics:
         NUM_THREADS={threads}
         """
 
-
-rule bam_hist:
-    input:
-        '{results_dir}/samples/{sample}/final.bam'
-    params:
-        memory=config['LOCAL']['memory'],
-        temp_directory=config['LOCAL']['temp-directory']
-    output:
-        '{results_dir}/logs/dropseq_tools/{sample}_hist_out_cell.txt'
-    conda: '../envs/dropseq_tools.yaml'
-    shell:
-        """export _JAVA_OPTIONS=-Djava.io.tmpdir={params.temp_directory} && BamTagHistogram -m {params.memory}\
-        TAG=XC\
-        I={input}\
-        READ_MQ=10\
-        O={output}
-        """
-
-
 rule plot_yield:
     input:
         R1_filtered=expand('{results_dir}/logs/cutadapt/{sample}_R1.qc.txt', sample=samples.index, results_dir=results_dir),
@@ -199,11 +186,11 @@ rule plot_yield:
 rule plot_knee_plot:
     input:
         data='{results_dir}/logs/dropseq_tools/{sample}_hist_out_cell.txt',
-        barcodes='{results_dir}/samples/{sample}/filtered_barcodes.csv'
     params:
         cells=lambda wildcards: int(samples.loc[wildcards.sample,'expected_cells'])
     conda: '../envs/r.yaml'
     output:
+        barcodes='{results_dir}/samples/{sample}/barcodes.csv',
         pdf='{results_dir}/plots/knee_plots/{sample}_knee_plot.pdf'
     script:
         '../scripts/plot_knee_plot.R'

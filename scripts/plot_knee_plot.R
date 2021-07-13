@@ -39,14 +39,22 @@ knee_plot <- ggplot(plot_data, aes(x=rank, y=cum_sum)) +
  scale_y_continuous(labels = scales::percent) +
  theme_classic()
 
-if(!is.null(snakemake@input$barcodes))
-{
-  selected_cells <- read.csv(snakemake@input$barcodes, header=FALSE, stringsAsFactors=FALSE)
+# if(!is.null(snakemake@input$barcodes))
+# {
+  # selected_cells <- read.csv(snakemake@input$barcodes, header=FALSE, stringsAsFactors=FALSE)
+  selected_cells <- data[1:snakemake@params$cells,]
+  print(head(selected_cells))
+  write.table(selected_cells[,"V2"], snakemake@output$barcodes, quote = FALSE, row.names = FALSE, col.names = FALSE)
+
+  # > selected_cells
+  #              V1
+  # 1  AGGATTGCGGAT
+  # 2  ACATGCGACACT
   knee_plot <- knee_plot +
-    geom_point(data = plot_data[plot_data$Barcode %in% selected_cells$V1,],
+    geom_point(data = plot_data[plot_data$Barcode %in% selected_cells$V2,],
                aes(x=rank, y=cum_sum, color='Selected'), size=0.1) +
     scale_color_manual(values=c('Selected'='green'))
-}
+# }
 ggsave(knee_plot, file=snakemake@output$pdf, width = 4, height = 3)
 
 
@@ -175,20 +183,22 @@ if (debug_flag) {
     theme(plot.title = element_text(size=10)) +
     labs(x='STAMPS', y='2nd derivative of read counts')
 
-  if(!is.null(snakemake@input$barcodes))
-  {
-    selected_cells <- read.csv(snakemake@input$barcodes, header=FALSE, stringsAsFactors=FALSE)
+  # if(!is.null(snakemake@input$barcodes))
+  # {
+    # selected_cells <- read.csv(snakemake@input$barcodes, header=FALSE, stringsAsFactors=FALSE)
     knee_plot_ext <- knee_plot_ext +
-      geom_point(data = plot_data_head[plot_data_head$Barcode %in% selected_cells$V1,],
+      # geom_point(data = plot_data_head[plot_data_head$Barcode %in% selected_cells$V1,],
+      geom_point(data = plot_data_head[plot_data_head$Barcode %in% selected_cells$V2,],
                  aes(x=rank, y=cum_sum, color='Selected'), size=0.1) +
       scale_color_manual(values=c('Selected'='green')) +
       theme(legend.position="none")
     diff_diff_plot <- diff_diff_plot +
-      geom_point(data = plot_data_head[plot_data_head$Barcode %in% selected_cells$V1,],
+      # geom_point(data = plot_data_head[plot_data_head$Barcode %in% selected_cells$V1,],
+      geom_point(data = plot_data_head[plot_data_head$Barcode %in% selected_cells$V2,],
                  aes(x=rank, y=reads_diffdiff_smooth, color='Selected'), size=0.1) +
       scale_color_manual(values=c('Selected'='green')) +
       theme(legend.position="none")
-  }
+  # }
   #   scale_y_continuous(position = "right")
   gp1 <- ggplotGrob(knee_plot_ext)
   gp2 <- ggplotGrob(read_count_plot)
