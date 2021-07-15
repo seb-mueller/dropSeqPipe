@@ -157,7 +157,8 @@ for (i in 1:length(samples)) {
   reads_cumsum      <- cumsum(reads)
   reads_cumsum_perc <- (reads_cumsum / sum(reads))
   # reporting stats
-  stats_pre[i, "Total_raw_reads"]                <- total_reads
+  try(stats_pre[i, "Total_raw_reads"]                <- total_reads) 
+  # bug: logs/cutadapt/*_R2.qc.txt seems not always to contain total reads. ignoring for now.
   stats_pre[i, "Reads_assigned_to_expected_STAMPs"] <- sum(reads[1:stats_post$Nb_STAMPS[i]])
   stats_pre[i, "Nr_barcodes_total"]              <- length(barcodes)
   stats_pre[i, "percentile99"]                   <- which.min(reads_cumsum_perc < 0.99)

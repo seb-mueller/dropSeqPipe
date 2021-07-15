@@ -4,12 +4,14 @@ channels:
 dependencies:
   - r
   - r-ggplot2
+  - bioconductor-scater
+  - bioconductor-dropletutils
   - r-gridextra
   - r-viridis
   - r-stringdist
   - r-dplyr
   - r-mvtnorm
-  - r-seurat=3
+  - r-seurat=4
   - r-hmisc
   - r-tidyverse
   - r-rcpp

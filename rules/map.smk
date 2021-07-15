@@ -24,8 +24,7 @@ rule STAR_align:
     log:
         '{results_dir}/samples/{sample}/Log.final.out'
     params:
-        extra=lambda wildcards: '--outTmpDir {}/{}\
-                --outSAMtype BAM SortedByCoordinate\
+        extra=lambda wildcards: '--outSAMtype BAM SortedByCoordinate\
                 --outReadsUnmapped Fastx\
                 --outFilterMismatchNmax {}\
                 --outFilterMismatchNoverLmax {}\
@@ -33,8 +32,6 @@ rule STAR_align:
                 --outFilterMatchNmin {}\
                 --outFilterScoreMinOverLread {}\
                 --outFilterMatchNminOverLread {}'.format(
-                config['LOCAL']['temp-directory'],
-                wildcards.sample,
                 config['MAPPING']['STAR']['outFilterMismatchNmax'],
                 config['MAPPING']['STAR']['outFilterMismatchNoverLmax'],
                 config['MAPPING']['STAR']['outFilterMismatchNoverReadLmax'],
@@ -48,7 +45,7 @@ rule STAR_align:
             release) + str(samples.loc[wildcards.sample,'read_length'])
     singularity:
         "shub://seb-mueller/singularity_dropSeqPipe:v04"
-    threads: 24
+    threads: 12
     wrapper:
         "0.66.0/bio/star/align"
 
